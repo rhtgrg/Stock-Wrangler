@@ -16,8 +16,12 @@ var debugMessage = debugLoggingEnabled ? function(msg){console.log(msg);} : func
 
 /* Namespace singleton */
 var StockWrangler = {
-    init: function(){     
+    init: function(){
+        // Add styling
         StockWrangler.addGlobalStyle("https://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.css");
+        // TODO: Find non-webkit alternative to inline the table
+        StockWrangler.addGlobalStyle(".sw-widget {font-size: 10px; font-family: 'Monaco','Bitstream Vera Sans Mono','Courier New',monospace; display: -webkit-inline-box; vertical-align: middle; margin-left: 10px;}");
+        StockWrangler.addGlobalStyle(".sw-widget td {border: 1px solid #999; padding: 1px 5px; text-align: center}");
         // Go over the config and perform actions as needed
         $.each(StockWranglerConfig, function(index,config){
             // Check if the current config matches URL
@@ -42,18 +46,25 @@ var StockWrangler = {
                                 }
                                 if(typeof action.after !== "undefined"){
                                     var finalText = action.after;
+                                    // Insert widget
+                                    finalText = finalText.replace("{widget}", StockWrangler.widget);
                                     // Inject ratings (including a tooltip if possible)
                                     if(typeof rating.avg !== "undefined"){
-                                        finalText = finalText.replace("{rating}", rating.avg.value+"% "+rating.avg.trend);
-                                        $(v).qtip({
-                                            content: {
-                                                title: "Rating Breakdown",
-                                                text: "<b>Short term:</b> "+rating.st.value+"% "+rating.st.trend+"<br/><b>Mid term:</b> "+rating.mt.value+"% "+rating.mt.trend+"<br/><b>Long term:</b> "+rating.lt.value+"% "+rating.lt.trend
-                                            },
-                                            style: {classes: "qtip-blue"}
-                                        });
+                                        // If average exists, others do too
+                                        finalText = finalText.replace("{rating.avg}", rating.avg.value+"% "+rating.avg.trend);
+                                        finalText = finalText.replace("{rating.st}", '<span style="'+
+                                                                                     StockWrangler.getStyle(rating.st.value, rating.st.trend)+
+                                                                                     '">'+rating.st.value+'</span>');
+                                        finalText = finalText.replace("{rating.mt}", '<span style="'+
+                                                                                     StockWrangler.getStyle(rating.mt.value, rating.mt.trend)+
+                                                                                     '">'+rating.mt.value+'</span>');
+                                        finalText = finalText.replace("{rating.lt}", '<span style="'+
+                                                                                     StockWrangler.getStyle(rating.lt.value, rating.lt.trend)+
+                                                                                     '">'+rating.lt.value+'</span>');
                                     }
-                                    finalText = finalText.replace("{sentiment}", sentiment.value + "% " + sentiment.trend);
+                                    finalText = finalText.replace("{sentiment}", '<span style="'+
+                                                                                 StockWrangler.getStyle(sentiment.value, sentiment.trend)+
+                                                                                 '">'+sentiment.value + "% " + sentiment.trend+'</span>');
                                     $(v).after(finalText);
                                 }
                             });
@@ -130,7 +141,16 @@ var StockWrangler = {
             }
         }); 
         return dfd.promise();
-    }
+    },
+    // Get colors based on value and trend
+    getStyle: function(value, trend){
+        if(/.*(Buy|Bullish).*/.test(trend)){
+            return "color: green;";
+        }
+        return "color: red;";
+    },
+    // Define the little widget that will show values succintly
+    widget: '<table class="sw-widget"><tr><td colspan="2">{rating.st}</td><td colspan="2">{rating.mt}</td><td colspan="2">{rating.lt}</td></tr><tr><td colspan="3">{rating.avg}</td><td colspan="3">{sentiment}</td></tr></table>'
 };
 
 /*
@@ -156,6 +176,12 @@ var StockWranglerConfig = [
                 delay: 1500,
                 ticker: function($container) {return $container.text();},
                 after: '<span  class="sw-graph-rating">{rating}</span><span class="sw-graph-sentiment">{sentiment}</span>'
+            },
+            {
+                select: '.gf-table [href^="/finance?q="]:odd',
+                delay: 1500,
+                ticker: function($container) {return $container.text();},
+                after: '{widget}'
             }
         ]
     },
