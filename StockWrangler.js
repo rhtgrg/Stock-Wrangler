@@ -3,22 +3,12 @@
 // @namespace  http://rhtgrg.com
 // @version    0.2
 // @description  User-script that displays pertinent stock information on certain websites
-// @match      https://www.google.com/finance?*
+// @match      https://www.google.com/finance*
 // @match	   http://www.marketwatch.com/game/*
 // @copyright  2014+, Rohit Garg
 // @require http://code.jquery.com/jquery-latest.js
 // ==/UserScript==
 
-/*
- * This script presumes that we are starting from a Google finance page as per usual
- * 
- * Steps:
- * - Comma separated list: Puts a comma separated list at the top
- * - Stock rating: Pulls the stock rating (buy, sell, hold) from barchart.com
- * - Yahoo Chart
- * - Chart link: This page links to a chart for 'n' stocks, where 'n' is the maximum
- *   supported number (by Google stock charts)
- */
 var StockWrangler = {
     init: function(){
         var re = /^http:\/\/www\.marketwatch\.com/;
@@ -28,7 +18,7 @@ var StockWrangler = {
             StockWranglerGoogle.init();
         }
     },
-    fetchSentiment: function($container, ticker){
+    fetchSentiment: function($container, ticker, numberOnly){
         var sen_number_re = /&quot;sen_number&quot;:\s+(\d+)/;
         var sen_text_re = /&quot;sen_text&quot;:\s.+?;(\w+)/;
         GM_xmlhttpRequest({
@@ -38,15 +28,17 @@ var StockWrangler = {
             },
             url: "http://insights.themarketiq.com/chart/?symbol="+ticker,
             onload: function(response) {
+                var result;
                 var sen_number = sen_number_re.exec(response.responseText);
                 var sen_text = sen_text_re.exec(response.responseText);
                 sen_number = sen_number ? sen_number[1]+"%" : "?";
                 sen_text = sen_text ? sen_text[1] : "";
-                $container.append(sen_number+' '+sen_text);
+                result = (typeof numberOnly !== "undefined" && numberOnly && /\d+/.exec(sen_number)) ? /\d+/.exec(sen_number)[0] : sen_number+' '+sen_text;
+                $container.append(result);
             }
-        });    
+        });
     },
-    fetchRating: function($container, ticker){
+    fetchRating: function($container, ticker, numberOnly){
         var re = /<b>Overall Average:.*?<\/b>/m;
         GM_xmlhttpRequest({
             method: "GET",
@@ -57,13 +49,43 @@ var StockWrangler = {
             onload: function(response) {
                 var opinion = re.exec(response.responseText);
                 if(opinion){
-                    $container.append(opinion[0].replace("Overall Average:",""));
+                    opinion = opinion[0].replace("Overall Average:","");
+                    result = (typeof numberOnly !== "undefined" && numberOnly) ? /\d+/.exec(opinion)[0] : opinion;
+                    $container.append(result);
                 }
             }
         }); 
     }
 };
 
+/*
+ * TODO: Use this dictionary to define what needs to be done
+ */
+var StockWranglerConfig = [
+    {
+        url: "",
+        actions: [
+            {
+                select: "",
+                populate: ""
+            }
+        ]
+    }
+];
+
+/*
+ * TODO: Use with above dictionary to prevent over-fetching
+ */
+var StockWranglerCache = {
+    SYM: {
+        rating: 0,
+        sentiment: 0
+    }
+};
+
+/*
+ * Marketwatch game specific actions
+ */
 var StockWranglerMarketWatch = {
     init: function(){
         $("[href^='/investing/stock/']").each(function(i,v){
@@ -78,6 +100,9 @@ var StockWranglerMarketWatch = {
     }
 }
 
+/*
+ * Google finance specific actions
+ */
 var StockWranglerGoogle = {
     stocks: [],
     init: function(){
@@ -149,6 +174,16 @@ var StockWranglerGoogle = {
                 }
             });
         }, 1500);
+        
+        // Also get stock ratings for tables (needs timeout because table loads late)
+        setTimeout(function(){
+            $("#pf-view-table [href^='/finance?q=']:odd").each(function(i,v){
+                var ticker = /:([^&]+)/.exec($(v).attr('href'))[1];
+                var $container = $('<div style="margin-left: 5px; font-weight: bold;"></div>');
+                StockWrangler.fetchRating($container, ticker, true);
+                $(v).after($container);
+            });
+        }, 1500);
     },
     getSocialSentiment: function(){
         $(StockWranglerGoogle.stocks).each(function(i,$v){
@@ -158,7 +193,7 @@ var StockWranglerGoogle = {
             $v.siblings(".wrangler_nums").append($container);
         });
         
-        // Also get stock ratings for graph tickers (needs timeout because graph loads late)
+        // Also get sentiments for graph tickers (needs timeout because graph loads late)
         setTimeout(function(){
             $("label.gf-chart-ticker").each(function(i,v){
                 var ticker = $(v).text();
@@ -167,6 +202,16 @@ var StockWranglerGoogle = {
                 if(ticker.match(/\./) == null){
                     StockWrangler.fetchSentiment($container, ticker);
                 }
+            });
+        }, 1500);
+        
+        // Also get sentiments for tables (needs timeout because table loads late)
+        setTimeout(function(){
+            $("#pf-view-table [href^='/finance?q=']:odd").each(function(i,v){
+                var ticker = /:([^&]+)/.exec($(v).attr('href'))[1];
+                var $container = $('<div style="margin-left: 5px;></div>');
+                StockWrangler.fetchSentiment($container, ticker, true);
+                $(v).after($container);
             });
         }, 1500);
     },
