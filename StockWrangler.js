@@ -5,6 +5,7 @@
 // @description  User-script that displays pertinent stock information on certain websites
 // @match      https://www.google.com/finance*
 // @match	   http://www.marketwatch.com/game/*
+// @match      https://client.schwab.com/*
 // @copyright  2014+, Rohit Garg
 // @updateURL  https://raw.github.com/rhtgrg/Stock-Wrangler/master/StockWrangler.js
 // @require http://code.jquery.com/jquery-latest.js
@@ -12,7 +13,7 @@
 // ==/UserScript==
 
 /* Debug method */
-var debugLoggingEnabled = false;
+var debugLoggingEnabled = true;
 var debugMessage = debugLoggingEnabled ? function(msg){console.log(msg);} : function(msg){};
 
 /* Namespace singleton */
@@ -29,8 +30,10 @@ var StockWrangler = {
                     // Select the items we will modify (after delay)
                     setTimeout(function(){
                         $(action.select).each(function(i,v){
-                            debugMessage("Processing element match #"+i);
                             var ticker = action.ticker($(v));
+                            if(/[0-9a-z.]/.test(ticker)) return; // Not a real stock ticker, has lowercase or numbers or dot
+                            debugMessage("Processing element match #"+i+" ("+ticker+")");
+                            
                             var sentimentPromise = StockWrangler.fetchRawSentiment(ticker, action.delay);
                             var ratingPromise = StockWrangler.fetchRawRating(ticker, action.delay);
                             
@@ -202,14 +205,25 @@ var StockWranglerConfig = [
     },
     {
         url: /http:\/\/www.marketwatch.com\/game.*/,
-            actions: [
-                {
-                    select: '[href^="/investing/stock/"]',
-                    delay: 0,
-                    ticker: function($container) {return $container.text();},
-                    after: '{widget}'
-                }
-            ]
+        actions: [
+            {
+                select: '[href^="/investing/stock/"]',
+                delay: 0,
+                ticker: function($container) {return $container.text();},
+                after: '{widget}'
+            }
+        ]
+    },
+    {
+        url: /https:\/\/client.schwab.com\/Accounts\/.*/,
+        actions: [
+            {
+                select: '[href^="/SymbolRouting.aspx?Symbol="]',
+                delay: 0,
+                ticker: function($container) {return $container.text().trim();},
+                after: '{widget}'
+            }
+        ]
     }
 ];
 
