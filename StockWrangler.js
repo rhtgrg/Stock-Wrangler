@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name       Stock Wrangler
 // @namespace  http://rhtgrg.com
-// @version    0.2
+// @version    0.3
 // @description  User-script that displays pertinent stock information on certain websites
 // @match      https://www.google.com/finance*
 // @match	   http://www.marketwatch.com/game/*
 // @copyright  2014+, Rohit Garg
+// @updateURL  https://raw.github.com/rhtgrg/Stock-Wrangler/master/StockWrangler.js
 // @require http://code.jquery.com/jquery-latest.js
 // @require http://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.js
 // ==/UserScript==
