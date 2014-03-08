@@ -40,6 +40,8 @@ var StockWrangler = {
                             $.when(ratingPromise, sentimentPromise).done(function(rating, sentiment){
                                 debugMessage(rating);
                                 debugMessage(sentiment);
+                                // Make sure we have something to do here
+                                if(typeof rating.avg === "undefined" || sentiment.trend === "") return; // Nothing to do
                                 if(typeof action.before !== "undefined"){
                                     $(v).before(action.before.replace("{ticker}",ticker));
                                 }
@@ -92,7 +94,7 @@ var StockWrangler = {
         StockWrangler.addGlobalStyle("https://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.css");
         StockWrangler.addGlobalStyle("https://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css");
         // TODO: Find non-webkit alternative to inline the table
-        StockWrangler.addGlobalStyle(".sw-widget {font-size: 10px; font-family: 'Monaco','Bitstream Vera Sans Mono','Courier New',monospace; display: -webkit-inline-box; vertical-align: middle; margin-left: 10px;}");
+        StockWrangler.addGlobalStyle(".sw-widget {font-size: 10px; font-family: 'Monaco','Bitstream Vera Sans Mono','Courier New',monospace; display: -webkit-inline-box; vertical-align: middle; margin-left: 10px; background: #fff; color: #000;}");
         StockWrangler.addGlobalStyle(".sw-widget td {border: 1px solid #999; padding: 1px 5px; text-align: center}");
         StockWrangler.addGlobalStyle(".sw-widget a {cursor:pointer; color:rgb(147, 150, 182); font-size: 11px;}");
     },
