@@ -44,7 +44,7 @@ var StockWrangler = {
                                     // Insert widget
                                     finalText = finalText.replace("{widget}", StockWrangler.widget);
                                     // Inject ticker
-                                    finalText = finalText.replace("{ticker}", ticker);
+                                    finalText = finalText.replace(/{ticker}/g, ticker);
                                     // Inject ratings (including a tooltip if possible)
                                     if(typeof rating.avg !== "undefined"){
                                         // If average exists, others do too
@@ -63,6 +63,11 @@ var StockWrangler = {
                                                                                  StockWrangler.getStyle(sentiment.value, sentiment.trend)+
                                                                                  '">'+sentiment.value + "% " + sentiment.trend+'</span>');
                                     $(v).after(finalText);
+                                    // Activate shopping cart / clipboard functionality
+                                    $(v).parent().find(".fa-shopping-cart").click(function(event){
+                                        StockWranglerClipboard.toggleTicker(ticker);
+                                        $(event.target).css("color", "blue");
+                                    });
                                 }
                             });
                         });
@@ -152,12 +157,10 @@ var StockWrangler = {
     getStyle: function(value, trend){
         if(/.*(Buy|Bullish).*/.test(trend)){
             return "color: green;";
+        } else if(/.*Neutral.*/.test(trend)){
+            return "";
         }
         return "color: red;";
-    },
-    // Activate the clipboard feature of the shopping cart
-    activateClipboard: function(){
-        // TODO
     },
     // Define the little widget that will show values succintly
     widget: '<table class="sw-widget"><tr><td colspan="2">{rating.st}</td><td colspan="2">{rating.mt}</td><td colspan="2">{rating.lt}</td><td><a href="https://www.google.com/finance?q={ticker}"><i class="fa fa-eye"></i></a></td></tr><tr><td colspan="3">{rating.avg}</td><td colspan="3">{sentiment}</td><td><i class="fa fa-shopping-cart"></i></td></tr></table>'
@@ -178,7 +181,7 @@ var StockWranglerConfig = [
                 select: '#main [href^="/finance?q="]',
                 delay: 0,
                 ticker: function($container) {return /:([^&]+)/.exec($container.attr('href'))[1];},
-                after: '<div class="sw-table-sentiment">{sentiment}</div><div class="sw-table-rating">{rating}</div>',
+                after: '{widget}',
                 before: '<img src="http://ichart.finance.yahoo.com/h?s={ticker}&amp;lang=en-US&amp;region=us" style="float: left; margin: 10px;" alt="Sparkline Chart"/>'
             },
             {
@@ -203,8 +206,7 @@ var StockWranglerConfig = [
                     select: '[href^="/investing/stock/"]',
                     delay: 0,
                     ticker: function($container) {return $container.text();},
-                    after: '<div style="font-weight: bold">{sentiment}</div><div style="color:blue; font-weight: bold">{rating}</div>',
-                    before: '<img src="http://ichart.finance.yahoo.com/h?s={ticker}&amp;lang=en-US&amp;region=us" style="float: left; margin: 10px;" alt="Sparkline Chart"/>'
+                    after: '{widget}'
                 }
             ]
     }
@@ -219,6 +221,16 @@ var StockWranglerCache = {
         sentiment: 0
     }
 };
+
+var StockWranglerClipboard = {
+    tickers: [],
+    toggleTicker: function(ticker) {
+        if(StockWranglerClipboard.tickers.indexOf(ticker) == -1){
+            StockWranglerClipboard.tickers.push(ticker);
+        }
+        GM_setClipboard(StockWranglerClipboard.tickers.join());
+    }
+}
 
 // Begin
 $(function(){
