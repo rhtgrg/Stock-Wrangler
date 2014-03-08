@@ -17,11 +17,6 @@ var debugMessage = debugLoggingEnabled ? function(msg){console.log(msg);} : func
 /* Namespace singleton */
 var StockWrangler = {
     init: function(){
-        // Add styling
-        StockWrangler.addGlobalStyle("https://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.css");
-        // TODO: Find non-webkit alternative to inline the table
-        StockWrangler.addGlobalStyle(".sw-widget {font-size: 10px; font-family: 'Monaco','Bitstream Vera Sans Mono','Courier New',monospace; display: -webkit-inline-box; vertical-align: middle; margin-left: 10px;}");
-        StockWrangler.addGlobalStyle(".sw-widget td {border: 1px solid #999; padding: 1px 5px; text-align: center}");
         // Go over the config and perform actions as needed
         $.each(StockWranglerConfig, function(index,config){
             // Check if the current config matches URL
@@ -48,6 +43,8 @@ var StockWrangler = {
                                     var finalText = action.after;
                                     // Insert widget
                                     finalText = finalText.replace("{widget}", StockWrangler.widget);
+                                    // Inject ticker
+                                    finalText = finalText.replace("{ticker}", ticker);
                                     // Inject ratings (including a tooltip if possible)
                                     if(typeof rating.avg !== "undefined"){
                                         // If average exists, others do too
@@ -80,6 +77,15 @@ var StockWrangler = {
         } else {
             $("head").append('<style type="text/css">'+css+'</style>');
         }
+    },
+    loadCSS: function() {
+        // Add styling
+        StockWrangler.addGlobalStyle("https://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.css");
+        StockWrangler.addGlobalStyle("https://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css");
+        // TODO: Find non-webkit alternative to inline the table
+        StockWrangler.addGlobalStyle(".sw-widget {font-size: 10px; font-family: 'Monaco','Bitstream Vera Sans Mono','Courier New',monospace; display: -webkit-inline-box; vertical-align: middle; margin-left: 10px;}");
+        StockWrangler.addGlobalStyle(".sw-widget td {border: 1px solid #999; padding: 1px 5px; text-align: center}");
+        StockWrangler.addGlobalStyle(".sw-widget a {cursor:pointer; color:rgb(147, 150, 182); font-size: 11px;}");
     },
     fetchRawSentiment: function(ticker){
         debugMessage("Fetching sentiment");
@@ -149,8 +155,12 @@ var StockWrangler = {
         }
         return "color: red;";
     },
+    // Activate the clipboard feature of the shopping cart
+    activateClipboard: function(){
+        // TODO
+    },
     // Define the little widget that will show values succintly
-    widget: '<table class="sw-widget"><tr><td colspan="2">{rating.st}</td><td colspan="2">{rating.mt}</td><td colspan="2">{rating.lt}</td></tr><tr><td colspan="3">{rating.avg}</td><td colspan="3">{sentiment}</td></tr></table>'
+    widget: '<table class="sw-widget"><tr><td colspan="2">{rating.st}</td><td colspan="2">{rating.mt}</td><td colspan="2">{rating.lt}</td><td><a href="https://www.google.com/finance?q={ticker}"><i class="fa fa-eye"></i></a></td></tr><tr><td colspan="3">{rating.avg}</td><td colspan="3">{sentiment}</td><td><i class="fa fa-shopping-cart"></i></td></tr></table>'
 };
 
 /*
@@ -174,8 +184,9 @@ var StockWranglerConfig = [
             {
                 select: 'label.gf-chart-ticker',
                 delay: 1500,
-                ticker: function($container) {return $container.text();},
-                after: '<span  class="sw-graph-rating">{rating}</span><span class="sw-graph-sentiment">{sentiment}</span>'
+                // TODO: Find a better place to adjust height
+                ticker: function($container) {$("#compare-bar").css("height","auto"); return $container.text();},
+                after: '{widget}'
             },
             {
                 select: '.gf-table [href^="/finance?q="]:odd',
@@ -211,5 +222,6 @@ var StockWranglerCache = {
 
 // Begin
 $(function(){
+    StockWrangler.loadCSS();
     StockWrangler.init();
 });
