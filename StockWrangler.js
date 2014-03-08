@@ -7,99 +7,128 @@
 // @match	   http://www.marketwatch.com/game/*
 // @copyright  2014+, Rohit Garg
 // @require http://code.jquery.com/jquery-latest.js
+// @require http://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.js
 // ==/UserScript==
 
+/* Debug method */
+var debugLoggingEnabled = false;
+var debugMessage = debugLoggingEnabled ? function(msg){console.log(msg);} : function(msg){};
+
+/* Namespace singleton */
 var StockWrangler = {
     init: function(){     
+        StockWrangler.addGlobalStyle("https://cdn.jsdelivr.net/qtip2/2.2.0/jquery.qtip.min.css");
         // Go over the config and perform actions as needed
         $.each(StockWranglerConfig, function(index,config){
             // Check if the current config matches URL
             if(config.url.test(document.URL)){
-                console.log(1111);
+                debugMessage("URL matched");
+                StockWrangler.addGlobalStyle(config.css);
                 $.each(config.actions, function(aindex,action){
-                    // Select the items we will modify
-                    $(action.select).each(function(i,v){
-                        var ticker = action.ticker($(v));
-                        var sentimentPromise = StockWrangler.fetchRawSentiment(ticker, action.delay);
-                        var ratingPromise = StockWrangler.fetchRawRating(ticker, action.delay);
-                        
-                        $.when(ratingPromise, sentimentPromise).done(function(rating, sentiment){
-                            console.log(sentiment);
-                            var finalText = action.after.replace("{rating}", rating.value+"% "+rating.trend);
-                            finalText = finalText.replace("{sentiment}", sentiment.value + "% " + sentiment.trend);
-                            $(v).after(finalText);
-                            if(typeof action.before !== "undefined"){
-                                $(v).before(action.before.replace("{ticker}",ticker));
-                            }
+                    debugMessage("Matching with: "+action.select);
+                    // Select the items we will modify (after delay)
+                    setTimeout(function(){
+                        $(action.select).each(function(i,v){
+                            debugMessage("Processing element match #"+i);
+                            var ticker = action.ticker($(v));
+                            var sentimentPromise = StockWrangler.fetchRawSentiment(ticker, action.delay);
+                            var ratingPromise = StockWrangler.fetchRawRating(ticker, action.delay);
+                            
+                            $.when(ratingPromise, sentimentPromise).done(function(rating, sentiment){
+                                debugMessage(rating);
+                                debugMessage(sentiment);
+                                if(typeof action.before !== "undefined"){
+                                    $(v).before(action.before.replace("{ticker}",ticker));
+                                }
+                                if(typeof action.after !== "undefined"){
+                                    var finalText = action.after;
+                                    // Inject ratings (including a tooltip if possible)
+                                    if(typeof rating.avg !== "undefined"){
+                                        finalText = finalText.replace("{rating}", rating.avg.value+"% "+rating.avg.trend);
+                                        $(v).qtip({
+                                            content: {
+                                                title: "Rating Breakdown",
+                                                text: "<b>Short term:</b> "+rating.st.value+"% "+rating.st.trend+"<br/><b>Mid term:</b> "+rating.mt.value+"% "+rating.mt.trend+"<br/><b>Long term:</b> "+rating.lt.value+"% "+rating.lt.trend
+                                            },
+                                            style: {classes: "qtip-blue"}
+                                        });
+                                    }
+                                    finalText = finalText.replace("{sentiment}", sentiment.value + "% " + sentiment.trend);
+                                    $(v).after(finalText);
+                                }
+                            });
                         });
-                    });
+                    }, action.delay);
                 });
             }
         });
-        
-        // Add CSS styling
-        StockWrangler.addGlobalStyle(".sw-table-rating {font-weight: bold;}");
-        StockWrangler.addGlobalStyle(".sw-table-sentiment {float: right; font-weight: bold; color: blue;}");
-        StockWrangler.addGlobalStyle(".sw-graph-rating {font-weight: bold; margin-left: 5px;}");
-        StockWrangler.addGlobalStyle(".sw-graph-sentiment {font-weight: bold; color: blue; margin-left: 5px;}");
     },
     addGlobalStyle: function(css) {
-        var head, style;
-        head = document.getElementsByTagName('head')[0];
-        if (!head) { return; }
-        style = document.createElement('style');
-        style.type = 'text/css';
-        style.innerHTML = css;
-        head.appendChild(style);
+        if(/http.*/.test(css)){
+            $("head").append('<link rel="stylesheet" type="text/css" href="'+css+'" />');
+        } else {
+            $("head").append('<style type="text/css">'+css+'</style>');
+        }
     },
-    fetchRawSentiment: function(ticker, delay){
+    fetchRawSentiment: function(ticker){
+        debugMessage("Fetching sentiment");
         var dfd = new $.Deferred();
         var result = {value: 0, trend: ""};
         var sen_number_re = /&quot;sen_number&quot;:\s+(\d+)/;
         var sen_text_re = /&quot;sen_text&quot;:\s.+?;(\w+)/;
-        setTimeout(function(){
-            GM_xmlhttpRequest({
-                method: "GET",
-                headers: {
-                    "Referer": "http://www.barchart.com/quotes/stocks/"+ticker
-                },
-                url: "http://insights.themarketiq.com/chart/?symbol="+ticker,
-                onload: function(response) {
-                    var sen_number = sen_number_re.exec(response.responseText);
-                    var sen_text = sen_text_re.exec(response.responseText);
-                    if(sen_number){
-                        result.value = sen_number[1];
-                    }
-                    if(sen_text){
-                        result.trend = sen_text[1];
-                    }
-                    dfd.resolve(result);
+        
+        GM_xmlhttpRequest({
+            method: "GET",
+            headers: {
+                "Referer": "http://www.barchart.com/quotes/stocks/"+ticker
+            },
+            url: "http://insights.themarketiq.com/chart/?symbol="+ticker,
+            onload: function(response) {
+                var sen_number = sen_number_re.exec(response.responseText);
+                var sen_text = sen_text_re.exec(response.responseText);
+                if(sen_number){
+                    result.value = sen_number[1];
                 }
-            });
-        }, delay);
+                if(sen_text){
+                    result.trend = sen_text[1];
+                }
+                dfd.resolve(result);
+            }
+        });
+        
         return dfd.promise();
     },
-    fetchRawRating: function(ticker, delay){
+    fetchRawRating: function(ticker){
+        debugMessage("Fetching rating");
         var dfd = new $.Deferred();
-        var result = {value: 0, trend: ""};
-        var re = /Overall Average:[^\d]+(\d+).+?([\w\s]+)/m;
-        setTimeout(function(){
-            GM_xmlhttpRequest({
-                method: "GET",
-                headers: {
-                    "Referer": "http://www.barchart.com/quotes/stocks/"+ticker
-                },
-                url: "http://www.barchart.com/opinions/stocks/"+ticker,
-                onload: function(response) {
-                    var opinion = re.exec(response.responseText);
-                    if(opinion){
-                        result.value = opinion[1];
-                        result.trend = opinion[2];
+        // Value is the average, st, lt, and mt are term based
+        var result = {};
+        var regex = {
+            avg: /Overall Average:[^\d]+(\d+).+?([\w\s]+)/m,
+            st: /Short Term Indicators Average:[^\d]+(\d+).+?([\w\s]+)/m,
+            mt: /Medium Term Indicators Average:[^\d]+(\d+).+?([\w\s]+)/m,
+            lt: /Long Term Indicators Average:[^\d]+(\d+).+?([\w\s]+)/m
+        };
+        GM_xmlhttpRequest({
+            method: "GET",
+            headers: {
+                "Referer": "http://www.barchart.com/quotes/stocks/"+ticker
+            },
+            url: "http://www.barchart.com/opinions/stocks/"+ticker,
+            onload: function(response) {
+                $.each(regex, function(key, val){
+                    var output = val.exec(response.responseText);
+                    if(output){
+                        result[key] = {
+                            value: output[1],
+                            trend: output[2]
+                        }
                     }
-                    dfd.resolve(result);
-                }
-            }); 
-        }, delay);
+                });
+                
+                dfd.resolve(result);
+            }
+        }); 
         return dfd.promise();
     }
 };
@@ -109,7 +138,11 @@ var StockWrangler = {
  */
 var StockWranglerConfig = [
     {
-        url: /https:\/\/www.google.com\/finance.*/,
+        url: /https?:\/\/www.google.com\/finance.*/,
+        css: ".sw-table-rating {font-weight: bold;} \
+              .sw-table-sentiment {float: right; font-weight: bold; color: blue;} \
+              .sw-graph-rating {font-weight: bold; margin-left: 5px;} \
+              .sw-graph-sentiment {font-weight: bold; color: blue; margin-left: 5px;}",
         actions: [
             {
                 select: '#main [href^="/finance?q="]',
@@ -128,15 +161,15 @@ var StockWranglerConfig = [
     },
     {
         url: /http:\/\/www.marketwatch.com\/game.*/,
-        actions: [
-            {
-                select: '[href^="/investing/stock/"]',
-                delay: 0,
-                ticker: function($container) {return $container.text();},
-                after: '<div style="font-weight: bold">{sentiment}</div><div style="color:blue; font-weight: bold">{rating}</div>',
-                before: '<img src="http://ichart.finance.yahoo.com/h?s={ticker}&amp;lang=en-US&amp;region=us" style="float: left; margin: 10px;" alt="Sparkline Chart"/>'
-            }
-        ]
+            actions: [
+                {
+                    select: '[href^="/investing/stock/"]',
+                    delay: 0,
+                    ticker: function($container) {return $container.text();},
+                    after: '<div style="font-weight: bold">{sentiment}</div><div style="color:blue; font-weight: bold">{rating}</div>',
+                    before: '<img src="http://ichart.finance.yahoo.com/h?s={ticker}&amp;lang=en-US&amp;region=us" style="float: left; margin: 10px;" alt="Sparkline Chart"/>'
+                }
+            ]
     }
 ];
 
