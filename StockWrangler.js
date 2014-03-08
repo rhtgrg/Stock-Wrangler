@@ -11,12 +11,94 @@
 
 var StockWrangler = {
     init: function(){
+        /*
         var re = /^http:\/\/www\.marketwatch\.com/;
         if(re.test(document.URL)){
             StockWranglerMarketWatch.init();
         } else {
             StockWranglerGoogle.init();
-        }
+        }*/
+        
+        // Go over the config and perform actions as needed
+        $.each(StockWranglerConfig, function(index,config){
+            // Check if the current config matches URL
+            if(config.url.test(document.URL)){
+                console.log(1111);
+                $.each(config.actions, function(aindex,action){
+                	// Select the items we will modify
+                    $(action.select).each(function(i,v){
+                    	var ticker = action.ticker($(v));
+                        var sentimentPromise = StockWrangler.fetchRawSentiment(ticker);
+                        var ratingPromise = StockWrangler.fetchRawRating(ticker);
+
+                        $.when(ratingPromise, sentimentPromise).done(function(rating, sentiment){
+                            console.log(rating);console.log(sentiment);
+                            var finalText = action.after.replace("{rating}", rating.value+"%");
+                            finalText.replace("{sentiment}", sentiment.value + "% " + sentiment.trend);
+                            $(v).after(finalText);
+                        });
+                    });
+                });
+            }
+        });
+        
+        // Add CSS styling
+        StockWrangler.addGlobalStyle("");
+    },
+    addGlobalStyle: function(css) {
+        var head, style;
+        head = document.getElementsByTagName('head')[0];
+        if (!head) { return; }
+        style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = css;
+        head.appendChild(style);
+    },
+    fetchRawSentiment: function(ticker){
+        var dfd = new $.Deferred();
+        var result = {value: 0, trend: ""};
+        var sen_number_re = /&quot;sen_number&quot;:\s+(\d+)/;
+        var sen_text_re = /&quot;sen_text&quot;:\s.+?;(\w+)/;
+        GM_xmlhttpRequest({
+            method: "GET",
+            headers: {
+                "Referer": "http://www.barchart.com/quotes/stocks/"+ticker
+            },
+            url: "http://insights.themarketiq.com/chart/?symbol="+ticker,
+            onload: function(response) {
+                var sen_number = sen_number_re.exec(response.responseText);
+                var sen_text = sen_text_re.exec(response.responseText);
+                if(sen_number){
+                    result.value = sen_number[1];
+                }
+                if(sen_text){
+                    result.trend = sen_text[1];
+                }
+                dfd.resolve(result);
+            }
+        });
+        return dfd.promise();
+    },
+    fetchRawRating: function(ticker){
+        var dfd = new $.Deferred();
+        var result = {value: 0, trend: ""};
+        var re = /Overall Average:[^\d]+(\d+)(.+\n){2}.+?>((\s?\w)+)/m;
+        GM_xmlhttpRequest({
+            method: "GET",
+            headers: {
+                "Referer": "http://www.barchart.com/quotes/stocks/"+ticker
+            },
+            url: "http://www.barchart.com/opinions/stocks/"+ticker,
+            onload: function(response) {
+                var opinion = re.exec(response.responseText);
+                if(opinion){
+					result.value = opinion[1];
+                    result.trend = opinion[3];
+                }
+                dfd.resolve(result);
+            }
+        }); 
+        return dfd.promise();
     },
     fetchSentiment: function($container, ticker, numberOnly){
         var sen_number_re = /&quot;sen_number&quot;:\s+(\d+)/;
@@ -63,11 +145,12 @@ var StockWrangler = {
  */
 var StockWranglerConfig = [
     {
-        url: "",
+        url: /https:\/\/www.google.com\/finance.*/,
         actions: [
             {
-                select: "",
-                populate: ""
+                select: '#main [href^="/finance?q="]',
+                ticker: function($container) {return /:([^&]+)/.exec($container.attr('href'))[1];},
+                after: '<div class="wrangler_nums">{rating}</div><div style="float:right; font-weight: bold;">{sentiment}</div>'
             }
         ]
     }
