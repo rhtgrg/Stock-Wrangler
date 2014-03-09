@@ -95,7 +95,7 @@ var StockWrangler = {
         StockWrangler.addGlobalStyle("https://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css");
         // TODO: Find non-webkit alternative to inline the table
         StockWrangler.addGlobalStyle(".sw-widget {font-size: 10px; font-family: 'Monaco','Bitstream Vera Sans Mono','Courier New',monospace; display: -webkit-inline-box; vertical-align: middle; margin-left: 10px; background: #fff; color: #000;}");
-        StockWrangler.addGlobalStyle(".sw-widget td {border: 1px solid #999; padding: 1px 5px; text-align: center}");
+        StockWrangler.addGlobalStyle(".sw-widget td {border: 1px solid #999 !important; padding: 1px 5px; text-align: center}");
         StockWrangler.addGlobalStyle(".sw-widget a {cursor:pointer; color:rgb(147, 150, 182); font-size: 11px;}");
     },
     fetchRawSentiment: function(ticker){
@@ -198,7 +198,7 @@ var StockWranglerConfig = [
                 after: '{widget}'
             },
             {
-                select: '.gf-table [href^="/finance?q="]:odd',
+                select: '.gf-table [href^="/finance?q="]',
                 delay: 1500,
                 ticker: function($container) {return $container.text();},
                 after: '{widget}'
