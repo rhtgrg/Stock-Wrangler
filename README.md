@@ -6,6 +6,27 @@ Stock Wrangler is a user script for Greasemonkey or Tampermonkey made primarily 
 ## Screenshot
 ![A screenshot of the widget](http://puu.sh/7o20f/2934b585a9.png)
 
+## How To Install
+
+### Firefox
+Install Greasemonkey:
+https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/
+
+- Copy the source from http://tinyurl.com/stockwrangler
+- Click on the Greasemonkey icon
+- Click on "New User Script"
+- Click "Use Script from Clipboard"
+- Paste the script and save
+
+### Chrome
+Install Tampermonkey:
+https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=en
+
+- Copy the source from http://tinyurl.com/stockwrangler
+- Click on the Tampermonkey icon
+- Click on "Add a new script..."
+- Paste the script and save
+
 ## Websites Supported
 - Google Finance
 - MarketWatch.com (games only)
