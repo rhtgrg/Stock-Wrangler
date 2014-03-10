@@ -18,6 +18,7 @@ var debugMessage = debugLoggingEnabled ? function(msg){console.log(msg);} : func
 
 /* Namespace singleton */
 var StockWrangler = {
+    list: [],
     init: function(){
         // Go over the config and perform actions as needed
         $.each(StockWranglerConfig, function(index,config){
@@ -33,7 +34,13 @@ var StockWrangler = {
                     setTimeout(function(){
                         $(action.select).each(function(i,v){
                             var ticker = action.ticker($(v));
-                            if(/[0-9a-z.]/.test(ticker)) return; // Not a real stock ticker, has lowercase or numbers or dot
+                            if(/[0-9a-z.]/.test(ticker)) {
+                                // Not a real stock ticker, has lowercase or numbers or dot
+                                return;
+                            } else {
+                                // Add to current stock list for this page and continue
+                                StockWrangler.list.push(ticker);
+                            }
                             debugMessage("Processing element match #"+i+" ("+ticker+")");
                             
                             var sentimentPromise = StockWrangler.fetchRawSentiment(ticker, action.delay);
@@ -180,6 +187,9 @@ var StockWrangler = {
 var StockWranglerConfig = [
     {
         url: /https?:\/\/www.google.com\/finance.*/,
+        pre: function(){
+            $("#compare-bar").css("height","auto");
+        },
         css: ".sw-table-rating {font-weight: bold;} \
               .sw-table-sentiment {float: right; font-weight: bold; color: blue;} \
               .sw-graph-rating {font-weight: bold; margin-left: 5px;} \
@@ -195,8 +205,7 @@ var StockWranglerConfig = [
             {
                 select: 'label.gf-chart-ticker',
                 delay: 1500,
-                // TODO: Find a better place to adjust height
-                ticker: function($container) {$("#compare-bar").css("height","auto"); return $container.text();},
+                ticker: function($container) {return $container.text();},
                 after: '{widget}'
             },
             {
@@ -218,7 +227,7 @@ var StockWranglerConfig = [
                 var chart = $("#chartElement");
                 chart.remove();
                 parent.append(chart);
-            }, 1500);
+            }, 1000);
         }
     },
     {
