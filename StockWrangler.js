@@ -25,6 +25,8 @@ var StockWrangler = {
             if(config.url.test(document.URL)){
                 debugMessage("URL matched");
                 StockWrangler.addGlobalStyle(config.css);
+                // Execute pre function if available
+                if(typeof config.pre !== "undefined") config.pre();
                 $.each(config.actions, function(aindex,action){
                     debugMessage("Matching with: "+action.select);
                     // Select the items we will modify (after delay)
@@ -204,6 +206,20 @@ var StockWranglerConfig = [
                 after: '{widget}'
             }
         ]
+    },
+    {
+        url: /https?:\/\/www.google.com\/finance\/portfolio.*/,
+        pre: function(){
+            // Enable zooming in upto a day on portfolio chart
+            setTimeout(function(){
+                $("#chartElement").attr("flashvars", $("#chartElement").attr("flashvars").replace(/ZoomDays([^=]+)?=\d+/g, "ZoomDays$1=1"));
+                // Re-draw chart
+                var parent = $("#chartElement").parent();
+                var chart = $("#chartElement");
+                chart.remove();
+                parent.append(chart);
+            }, 1500);
+        }
     },
     {
         url: /http:\/\/www.marketwatch.com\/game.*/,
